@@ -7,6 +7,10 @@
  */
 
 const GEMINI_MODEL = "gemini-2.5-flash-lite";
+const SYSTEM_INSTRUCTION =
+  "Kamu adalah Sigap, asisten AI yang energik, ramah, dan ekspresif. Gunakan emoji yang relevan " +
+  "secukupnya di balasanmu (jangan berlebihan), gunakan format **tebal** untuk penekanan kalau perlu, " +
+  "dan jawab dengan nada bersemangat serta personal -- jangan kaku atau formal. Selalu jawab dalam Bahasa Indonesia.";
 
 export default {
   async fetch(request, env) {
@@ -53,19 +57,35 @@ async function askGemini(contents, apiKey) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
+      systemInstruction: { parts: [{ text: SYSTEM_INSTRUCTION }] },
       contents,
-      generationConfig: { temperature: 0.7, maxOutputTokens: 500 },
+      generationConfig: { temperature: 0.8, maxOutputTokens: 500 },
     }),
   });
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`Gemini API error ${response.status}: ${errorText}`);
+    throw new Error(friendlyErrorMessage(response.status, errorText));
   }
 
   const data = await response.json();
   const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
   return text || "Maaf, aku nggak berhasil menjawab pertanyaan itu. Coba tanya dengan cara lain?";
+}
+
+function friendlyErrorMessage(status, rawErrorText) {
+  const lower = rawErrorText.toLowerCase();
+
+  if (status === 503 || lower.includes("unavailable")) {
+    return "Server Gemini sedang sibuk (overload sementara). Coba kirim lagi sebentar.";
+  }
+  if (status === 429 || lower.includes("resource_exhausted") || lower.includes("quota")) {
+    return "Kuota API habis untuk saat ini. Coba lagi setelah beberapa menit.";
+  }
+  if (status === 401 || status === 403 || lower.includes("api_key_invalid")) {
+    return "API Key Gemini tidak valid. Cek lagi nilai GEMINI_API_KEY di Secrets.";
+  }
+  return `Terjadi kesalahan (${status}): ${rawErrorText}`;
 }
 
 function jsonResponse(obj, status = 200) {
@@ -167,7 +187,13 @@ const HTML_PAGE = `<!DOCTYPE html>
     display: flex;
     flex-direction: column;
     gap: 14px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
   }
+  #chat::-webkit-scrollbar { width: 8px; }
+  #chat::-webkit-scrollbar-track { background: transparent; }
+  #chat::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  #chat::-webkit-scrollbar-thumb:hover { background: var(--signal); }
   .msg {
     max-width: 78%;
     padding: 11px 15px;
@@ -266,6 +292,19 @@ const HTML_PAGE = `<!DOCTYPE html>
     const inputEl = document.getElementById("input");
     let history = [];
 
+    function escapeHtml(str) {
+      const div = document.createElement("div");
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    function formatReply(text) {
+      let safe = escapeHtml(text);
+      safe = safe.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+      safe = safe.replace(/^[*-] (.+)$/gm, "• $1");
+      return safe;
+    }
+
     function addMessage(role, text, isLoading) {
       const wrap = document.createElement("div");
       wrap.className = "msg " + role;
@@ -279,6 +318,8 @@ const HTML_PAGE = `<!DOCTYPE html>
       body.className = "body";
       if (isLoading) {
         body.innerHTML = 'Memproses sinyal <span class="dots"><span></span><span></span><span></span></span>';
+      } else if (role === "model") {
+        body.innerHTML = formatReply(text);
       } else {
         body.textContent = text;
       }
@@ -311,7 +352,7 @@ const HTML_PAGE = `<!DOCTYPE html>
         if (data.error) {
           loadingBody.textContent = "Sinyal gagal terkirim: " + data.error;
         } else {
-          loadingBody.textContent = data.reply;
+          loadingBody.innerHTML = formatReply(data.reply);
           history.push({ role: "user", content: message });
           history.push({ role: "model", content: data.reply });
         }
