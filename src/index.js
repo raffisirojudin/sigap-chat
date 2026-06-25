@@ -80,20 +80,29 @@ const HTML_PAGE = `<!DOCTYPE html>
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Sigap Chat</title>
+<title>Sigap</title>
 <style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Manrope:wght@400;500;700&display=swap');
+
   :root {
-    --bg: #161b22;
-    --card: #1f2630;
-    --accent: #e8a33d;
-    --text: #e6eaf0;
-    --border: #30394a;
+    --bg: #0a1612;
+    --panel: #0f231c;
+    --grid: #16332689;
+    --signal: #4ade9c;
+    --signal-dim: rgba(74, 222, 156, 0.14);
+    --text: #d8f3e6;
+    --muted: #6b8c7e;
+    --border: #1f4536;
   }
   * { box-sizing: border-box; }
   body {
     margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    background: var(--bg);
+    font-family: 'Manrope', sans-serif;
+    background-color: var(--bg);
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 28px 28px;
     color: var(--text);
     display: flex;
     justify-content: center;
@@ -105,76 +114,148 @@ const HTML_PAGE = `<!DOCTYPE html>
     display: flex;
     flex-direction: column;
     height: 100vh;
+    background: rgba(10, 22, 18, 0.88);
   }
   header {
-    padding: 20px;
+    padding: 22px 20px;
     border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 16px;
   }
-  header h1 { margin: 0; font-size: 22px; }
-  header p { margin: 4px 0 0; color: #9aa4b2; font-size: 14px; }
+  .radar {
+    position: relative;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    flex-shrink: 0;
+    overflow: hidden;
+    background: radial-gradient(circle, var(--signal-dim) 0%, transparent 70%);
+  }
+  .radar::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 50%;
+    height: 2px;
+    background: linear-gradient(90deg, var(--signal), transparent);
+    transform-origin: left center;
+    animation: sweep 3s linear infinite;
+  }
+  @keyframes sweep {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+  .brand h1 {
+    margin: 0;
+    font-family: 'Space Mono', monospace;
+    font-size: 19px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .brand p {
+    margin: 3px 0 0;
+    color: var(--muted);
+    font-size: 13px;
+  }
   #chat {
     flex: 1;
     overflow-y: auto;
-    padding: 20px;
+    padding: 22px 20px;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 14px;
   }
   .msg {
-    max-width: 80%;
-    padding: 10px 14px;
-    border-radius: 10px;
-    line-height: 1.5;
-    white-space: pre-wrap;
+    max-width: 78%;
+    padding: 11px 15px;
+    border-radius: 4px;
+    line-height: 1.55;
+    font-size: 15px;
   }
-  .msg.user {
-    background: var(--accent);
-    color: #1a1208;
-    align-self: flex-end;
+  .msg.user { align-self: flex-end; background: var(--signal-dim); border: 1px solid var(--signal); }
+  .msg.model { align-self: flex-start; background: var(--panel); border: 1px solid var(--border); }
+  .msg .tag {
+    display: block;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin-bottom: 4px;
+    text-transform: uppercase;
   }
-  .msg.model {
-    background: var(--card);
-    border: 1px solid var(--border);
-    align-self: flex-start;
+  .msg .body { white-space: pre-wrap; }
+  .dots { display: inline-flex; gap: 4px; vertical-align: middle; }
+  .dots span {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--signal);
+    animation: blink 1.2s infinite ease-in-out;
   }
-  .msg.loading { opacity: 0.6; font-style: italic; }
+  .dots span:nth-child(2) { animation-delay: 0.2s; }
+  .dots span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes blink {
+    0%, 80%, 100% { opacity: 0.2; }
+    40% { opacity: 1; }
+  }
   form {
     display: flex;
-    gap: 8px;
-    padding: 16px;
+    gap: 10px;
+    padding: 16px 20px;
     border-top: 1px solid var(--border);
   }
   input {
     flex: 1;
-    padding: 12px;
-    border-radius: 8px;
+    padding: 13px 14px;
+    border-radius: 4px;
     border: 1px solid var(--border);
-    background: var(--card);
+    background: var(--panel);
     color: var(--text);
+    font-family: 'Manrope', sans-serif;
     font-size: 15px;
   }
-  input:focus { outline: 1px solid var(--accent); }
+  input::placeholder { color: var(--muted); }
+  input:focus-visible { outline: 2px solid var(--signal); outline-offset: 1px; }
   button {
-    padding: 12px 20px;
-    border-radius: 8px;
-    border: none;
-    background: var(--accent);
-    color: #1a1208;
-    font-weight: 600;
+    padding: 13px 22px;
+    border-radius: 4px;
+    border: 1px solid var(--signal);
+    background: var(--signal);
+    color: #06120d;
+    font-family: 'Space Mono', monospace;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    font-size: 13px;
     cursor: pointer;
+    transition: filter 0.15s ease;
   }
-  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  button:hover:not(:disabled) { filter: brightness(1.12); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  button:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) {
+    .radar::before, .dots span { animation: none; }
+  }
+  @media (max-width: 480px) {
+    .msg { max-width: 88%; }
+  }
 </style>
 </head>
 <body>
   <div class="app">
     <header>
-      <h1>🛠️ Sigap Chat</h1>
-      <p>Halaman web sendiri, bertenaga Gemini API, jalan di Cloudflare Workers.</p>
+      <div class="radar"></div>
+      <div class="brand">
+        <h1>Sigap</h1>
+        <p>Sistem respons instan -- kirim sinyal, terima jawaban.</p>
+      </div>
     </header>
     <div id="chat"></div>
     <form id="form">
-      <input id="input" type="text" placeholder="Tulis sesuatu..." autocomplete="off" />
+      <input id="input" type="text" placeholder="Kirim sinyal..." autocomplete="off" />
       <button type="submit">Kirim</button>
     </form>
   </div>
@@ -186,12 +267,26 @@ const HTML_PAGE = `<!DOCTYPE html>
     let history = [];
 
     function addMessage(role, text, isLoading) {
-      const div = document.createElement("div");
-      div.className = "msg " + role + (isLoading ? " loading" : "");
-      div.textContent = text;
-      chatEl.appendChild(div);
+      const wrap = document.createElement("div");
+      wrap.className = "msg " + role;
+
+      const tag = document.createElement("span");
+      tag.className = "tag";
+      tag.textContent = role === "user" ? "Kamu" : "Sigap";
+      wrap.appendChild(tag);
+
+      const body = document.createElement("div");
+      body.className = "body";
+      if (isLoading) {
+        body.innerHTML = 'Memproses sinyal <span class="dots"><span></span><span></span><span></span></span>';
+      } else {
+        body.textContent = text;
+      }
+      wrap.appendChild(body);
+
+      chatEl.appendChild(wrap);
       chatEl.scrollTop = chatEl.scrollHeight;
-      return div;
+      return body;
     }
 
     formEl.addEventListener("submit", async function (e) {
@@ -201,7 +296,7 @@ const HTML_PAGE = `<!DOCTYPE html>
 
       inputEl.value = "";
       addMessage("user", message);
-      const loadingDiv = addMessage("model", "Sigap sedang berpikir...", true);
+      const loadingBody = addMessage("model", "", true);
       const button = formEl.querySelector("button");
       button.disabled = true;
 
@@ -214,15 +309,14 @@ const HTML_PAGE = `<!DOCTYPE html>
         const data = await res.json();
 
         if (data.error) {
-          loadingDiv.textContent = "⚠️ " + data.error;
+          loadingBody.textContent = "Sinyal gagal terkirim: " + data.error;
         } else {
-          loadingDiv.textContent = data.reply;
-          loadingDiv.classList.remove("loading");
+          loadingBody.textContent = data.reply;
           history.push({ role: "user", content: message });
           history.push({ role: "model", content: data.reply });
         }
       } catch (err) {
-        loadingDiv.textContent = "⚠️ Gagal terhubung ke server: " + err.message;
+        loadingBody.textContent = "Sinyal gagal terkirim: " + err.message;
       } finally {
         button.disabled = false;
         inputEl.focus();
