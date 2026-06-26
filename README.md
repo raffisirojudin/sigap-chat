@@ -2,11 +2,12 @@
 
 Chatbot AI sebagai halaman web sendiri -- nggak butuh akun Telegram, Discord, atau platform manapun. Cukup buka link-nya di browser. Jalan di Cloudflare Workers, satu file JavaScript saja, 100% gratis tanpa kartu kredit.
 
-## Kenapa ini lebih simpel daripada penggunaan platform pihak ketiga?
+## Kenapa ini lebih simpel dari 2 percobaan sebelumnya?
 
 - **Tidak ada akun pihak ketiga** -- nggak perlu daftar Telegram atau Discord, jadi nggak ada risiko gagal login di platform orang lain
 - **Tidak ada dependency npm** -- beda dari versi Discord yang butuh package `discord-interactions`, di sini cukup 1 file `src/index.js`, tidak ada `npm install` sama sekali
 - **Tidak ada proses verifikasi/webhook ke pihak luar** -- nggak perlu daftarkan URL ke siapapun, begitu di-deploy langsung bisa dibuka
+- **🔒 Proteksi password (opsional)** -- set `APP_PASSWORD` di Secrets, pengunjung wajib masukkan password dulu sebelum bisa chat. Kalau tidak diisi, app tetap terbuka tanpa proteksi
 
 ## Cara kerja
 
@@ -33,6 +34,7 @@ Upload semua file di sini: `src/index.js`, `wrangler.jsonc`, `.gitignore`. (File
 
 Di halaman Worker kamu → **Settings → Variables and Secrets**, tambahkan:
 - `GEMINI_API_KEY` = API key Gemini kamu (key lama dari proyek-proyek sebelumnya masih bisa dipakai)
+- `APP_PASSWORD` (opsional, tapi disarankan) = password pilihan kamu sendiri, biar nggak sembarang orang yang punya link bisa ikut chat
 
 ### 4. Buka link-nya!
 
