@@ -16,6 +16,9 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
+    if (url.pathname === "/api/login" && request.method === "POST") {
+      return handleLogin(request, env);
+    }
     if (url.pathname === "/api/chat" && request.method === "POST") {
       return handleChat(request, env);
     }
@@ -26,13 +29,29 @@ export default {
   },
 };
 
+async function handleLogin(request, env) {
+  const { password } = await request.json();
+  const appPassword = env.APP_PASSWORD;
+
+  // Kalau APP_PASSWORD belum diset di Secrets, app tetap terbuka tanpa proteksi.
+  if (!appPassword) {
+    return jsonResponse({ ok: true });
+  }
+  return jsonResponse({ ok: password === appPassword });
+}
+
 async function handleChat(request, env) {
   try {
     if (!env.GEMINI_API_KEY) {
       return jsonResponse({ error: "GEMINI_API_KEY belum diset di Secrets." }, 500);
     }
 
-    const { message, history } = await request.json();
+    const { message, history, password } = await request.json();
+
+    if (env.APP_PASSWORD && password !== env.APP_PASSWORD) {
+      return jsonResponse({ error: "Password salah atau belum dimasukkan." }, 401);
+    }
+
     if (!message || typeof message !== "string") {
       return jsonResponse({ error: "Pesan kosong." }, 400);
     }
@@ -268,10 +287,74 @@ const HTML_PAGE = `<!DOCTYPE html>
   @media (max-width: 480px) {
     .msg { max-width: 88%; }
   }
+  .gate {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    width: 100%;
+    padding: 20px;
+  }
+  .gate-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 32px;
+    width: 100%;
+    max-width: 320px;
+    text-align: center;
+  }
+  .gate-card h2 {
+    margin: 0 0 16px;
+    font-family: 'Space Mono', monospace;
+    font-size: 15px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .gate-card input {
+    width: 100%;
+    margin-bottom: 12px;
+    padding: 12px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Manrope', sans-serif;
+    font-size: 15px;
+  }
+  .gate-card button {
+    width: 100%;
+    padding: 12px;
+    border-radius: 4px;
+    border: 1px solid var(--signal);
+    background: var(--signal);
+    color: #06120d;
+    font-family: 'Space Mono', monospace;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .gate-error {
+    color: #ff8a8a;
+    font-size: 13px;
+    margin: 10px 0 0;
+    min-height: 16px;
+  }
 </style>
 </head>
 <body>
-  <div class="app">
+  <div class="gate" id="gate">
+    <div class="gate-card">
+      <h2>🔒 Akses Terbatas</h2>
+      <input id="gate-input" type="password" placeholder="Masukkan password" autocomplete="current-password" />
+      <button id="gate-btn" type="button">Masuk</button>
+      <p class="gate-error" id="gate-error"></p>
+    </div>
+  </div>
+
+  <div class="app" id="app" style="display:none;">
     <header>
       <div class="radar"></div>
       <div class="brand">
@@ -287,10 +370,68 @@ const HTML_PAGE = `<!DOCTYPE html>
   </div>
 
   <script>
+    const gateEl = document.getElementById("gate");
+    const appEl = document.getElementById("app");
+    const gateInput = document.getElementById("gate-input");
+    const gateBtn = document.getElementById("gate-btn");
+    const gateError = document.getElementById("gate-error");
+
     const chatEl = document.getElementById("chat");
     const formEl = document.getElementById("form");
     const inputEl = document.getElementById("input");
     let history = [];
+    let appPassword = "";
+
+    function showApp() {
+      gateEl.style.display = "none";
+      appEl.style.display = "flex";
+      inputEl.focus();
+    }
+
+    async function checkPassword(password) {
+      const res = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: password }),
+      });
+      const data = await res.json();
+      return data.ok;
+    }
+
+    async function tryLogin() {
+      const password = gateInput.value;
+      gateBtn.disabled = true;
+      gateError.textContent = "";
+      try {
+        const ok = await checkPassword(password);
+        if (ok) {
+          appPassword = password;
+          showApp();
+        } else {
+          gateError.textContent = "Password salah, coba lagi.";
+        }
+      } catch (err) {
+        gateError.textContent = "Gagal memeriksa password: " + err.message;
+      } finally {
+        gateBtn.disabled = false;
+      }
+    }
+
+    // Cek diam-diam pas halaman dibuka -- kalau APP_PASSWORD belum diset
+    // di server, gate ini langsung kelewat tanpa nampilin error apapun.
+    checkPassword("").then(function (ok) {
+      if (ok) {
+        appPassword = "";
+        showApp();
+      }
+    }).catch(function () {
+      // Biarkan saja -- gate tetap tampil sebagai fallback yang aman.
+    });
+
+    gateBtn.addEventListener("click", tryLogin);
+    gateInput.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") tryLogin();
+    });
 
     function escapeHtml(str) {
       const div = document.createElement("div");
@@ -345,7 +486,7 @@ const HTML_PAGE = `<!DOCTYPE html>
         const res = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: message, history: history }),
+          body: JSON.stringify({ message: message, history: history, password: appPassword }),
         });
         const data = await res.json();
 
